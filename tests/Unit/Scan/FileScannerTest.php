@@ -67,6 +67,23 @@ final class FileScannerTest extends TestCase
         self::assertSame([$this->rootDir . '/app/code/Vendor/Module/Src/Included.php'], $result);
     }
 
+    public function testExcludesByAbsolutePathRegardlessOfRootDir(): void
+    {
+        // An absolute exclude can arise when a config file living outside root-dir has its
+        // relative exclude entries rebased against its own directory (see ConfigResolver).
+        $this->touch('app/code/Vendor/Module/Test/Excluded.php');
+        $this->touch('app/code/Vendor/Module/Src/Included.php');
+
+        $result = $this->scanner->scan(
+            ['app/code/Vendor/Module'],
+            ['php'],
+            [$this->rootDir . '/app/code/Vendor/Module/Test'],
+            $this->rootDir,
+        );
+
+        self::assertSame([$this->rootDir . '/app/code/Vendor/Module/Src/Included.php'], $result);
+    }
+
     public function testExcludeDoesNotNeedToExistOnDisk(): void
     {
         $this->touch('src/Foo.php');

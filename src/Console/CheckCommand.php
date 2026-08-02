@@ -105,15 +105,19 @@ final class CheckCommand extends Command
             return Command::INVALID;
         }
 
+        $configPath = $this->resolveConfigPath($input);
+        $configFileLoader = new ConfigFileLoader();
+
         try {
-            $fileConfig = (new ConfigFileLoader())->load($rootDir, $this->resolveConfigPath($input));
+            $fileConfig = $configFileLoader->load($rootDir, $configPath);
         } catch (RuntimeException $e) {
             $io->error($e->getMessage());
 
             return Command::INVALID;
         }
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $configDir = $configFileLoader->resolveConfigDir($rootDir, $configPath);
+        $config = (new ConfigResolver())->resolve($input, $fileConfig, $configDir);
         $paths = $this->resolvePaths($input, $config);
         $validationError = $this->validateConfig($config, $paths);
 

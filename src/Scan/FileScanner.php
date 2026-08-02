@@ -112,21 +112,30 @@ final class FileScanner
      */
     private function normalizeExcludes(array $excludes): array
     {
-        $normalized = array_map(
-            static fn (string $exclude): string => trim(str_replace('\\', '/', $exclude), '/'),
-            $excludes,
-        );
+        $normalized = [];
 
-        return array_values(array_filter($normalized, static fn (string $exclude): bool => $exclude !== ''));
+        foreach ($excludes as $exclude) {
+            $exclude = str_replace('\\', '/', $exclude);
+            $exclude = $this->isAbsolute($exclude) ? rtrim($exclude, '/') : trim($exclude, '/');
+
+            if ($exclude !== '') {
+                $normalized[] = $exclude;
+            }
+        }
+
+        return $normalized;
     }
 
     /**
-     * An exclude value containing a "/" is matched as a path relative to the project root
-     * (e.g. "app/code/Vendor/Module/Test"). A bare name with no "/" (e.g. "vendor", "Test")
-     * is matched as a path segment at any depth, mirroring how tools like .gitignore treat
-     * bare names -- this lets a single "Test" entry exclude every directory named "Test"
-     * anywhere in the tree, not just one sitting directly under the project root. Neither
-     * form requires the excluded path to actually exist on disk.
+     * An absolute exclude value (possible when it was rebased against a config file's own
+     * directory, which may sit outside the project root -- see ConfigResolver) is matched
+     * against the file's absolute path directly. A relative value containing a "/" is
+     * matched as a path relative to the project root (e.g. "app/code/Vendor/Module/Test").
+     * A bare name with no "/" (e.g. "vendor", "Test") is matched as a path segment at any
+     * depth, mirroring how tools like .gitignore treat bare names -- this lets a single
+     * "Test" entry exclude every directory named "Test" anywhere in the tree, not just one
+     * sitting directly under the project root. None of these forms require the excluded
+     * path to actually exist on disk.
      *
      * @param string[] $excludes
      */
@@ -138,19 +147,32 @@ final class FileScanner
         $segments = explode('/', $relativePath);
 
         foreach ($excludes as $exclude) {
-            if (str_contains($exclude, '/')) {
-                if ($relativePath === $exclude || str_starts_with($relativePath, $exclude . '/')) {
-                    return true;
-                }
-
-                continue;
-            }
-
-            if (in_array($exclude, $segments, true)) {
+            if ($this->matchesExcludeEntry($exclude, $realPath, $relativePath, $segments)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * @param string[] $segments
+     */
+    private function matchesExcludeEntry(string $exclude, string $realPath, string $relativePath, array $segments): bool
+    {
+        if ($this->isAbsolute($exclude)) {
+            return $this->pathMatchesExclude($realPath, $exclude);
+        }
+
+        if (str_contains($exclude, '/')) {
+            return $this->pathMatchesExclude($relativePath, $exclude);
+        }
+
+        return in_array($exclude, $segments, true);
+    }
+
+    private function pathMatchesExclude(string $path, string $exclude): bool
+    {
+        return $path === $exclude || str_starts_with($path, $exclude . '/');
     }
 }

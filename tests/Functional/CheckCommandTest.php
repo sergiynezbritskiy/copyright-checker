@@ -109,6 +109,35 @@ final class CheckCommandTest extends TestCase
         self::assertStringContainsString('1 OK', $tester->getDisplay());
     }
 
+    public function testLocationsInConfigFileOutsideRootDirAreRelativeToTheConfigFile(): void
+    {
+        // Reproduces the reported scenario: the PHP app lives in an "html" subdirectory
+        // (--root-dir), but --config-path points at a .copyright.dist sitting one level up,
+        // outside root-dir entirely. "locations" in that file must resolve relative to
+        // wherever the file itself lives, not to --root-dir.
+        $outerDir = $this->tmpDir;
+        $appDir = $outerDir . '/html';
+        mkdir($appDir . '/src', 0777, true);
+        file_put_contents($appDir . '/src/Foo.php', "<?php\n// Copyright\n\nclass Foo {}\n");
+        file_put_contents($outerDir . '/.copyright.dist', <<<'PHP'
+            <?php
+            return [
+                'extension' => ['php'],
+                'template' => ['// Copyright'],
+                'locations' => ['html/src'],
+            ];
+            PHP);
+
+        $tester = $this->createTester();
+        $exitCode = $tester->execute([
+            '--root-dir' => $appDir,
+            '--config-path' => $outerDir . '/.copyright.dist',
+        ]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('1 OK', $tester->getDisplay());
+    }
+
     public function testNoPathArgumentsAndNoLocationsIsAUsageError(): void
     {
         file_put_contents($this->tmpDir . '/.copyright.dist', <<<'PHP'

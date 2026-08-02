@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CopyrightChecker\Tests\Unit\Config;
 
+use CopyrightChecker\Config\Config;
 use CopyrightChecker\Config\ConfigResolver;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Input\ArgvInput;
@@ -13,6 +14,8 @@ use Symfony\Component\Console\Input\InputOption;
 
 final class ConfigResolverTest extends TestCase
 {
+    private const CONFIG_DIR = '/project/config-dir';
+
     /**
      * @param string[] $argv
      */
@@ -32,12 +35,20 @@ final class ConfigResolverTest extends TestCase
         return new ArgvInput(array_merge(['bin/copyright'], $argv), $definition);
     }
 
+    /**
+     * @param array<string, mixed> $fileConfig
+     */
+    private function resolve(ArgvInput $input, array $fileConfig, string $configDir = self::CONFIG_DIR): Config
+    {
+        return (new ConfigResolver())->resolve($input, $fileConfig, $configDir);
+    }
+
     public function testCliArrayOptionWhollyReplacesFileArrayWhenPassedAtAll(): void
     {
         $input = $this->createInput(['--extension=xml', 'src']);
         $fileConfig = ['extension' => ['php', 'js']];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertSame(['xml'], $config->extension);
     }
@@ -47,7 +58,7 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['src']);
         $fileConfig = ['extension' => ['php', 'js']];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertSame(['php', 'js'], $config->extension);
     }
@@ -57,9 +68,52 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['--exclude=tests', 'src']);
         $fileConfig = ['exclude' => ['vendor', 'var']];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertSame(['tests'], $config->exclude);
+    }
+
+    public function testCliSuppliedExcludeIsNotRebasedAgainstConfigDir(): void
+    {
+        // CLI-supplied values are relative to --root-dir (resolved later by FileScanner),
+        // not to wherever the config file happens to live -- they must pass through as-is.
+        $input = $this->createInput(['--exclude=app/code/Foo', 'src']);
+
+        $config = $this->resolve($input, []);
+
+        self::assertSame(['app/code/Foo'], $config->exclude);
+    }
+
+    public function testFileExcludeContainingSlashIsRebasedAgainstConfigDir(): void
+    {
+        $input = $this->createInput(['src']);
+        $fileConfig = ['exclude' => ['app/code/Vendor/Module/Test']];
+
+        $config = $this->resolve($input, $fileConfig);
+
+        self::assertSame([self::CONFIG_DIR . '/app/code/Vendor/Module/Test'], $config->exclude);
+    }
+
+    public function testFileExcludeBareNameIsNotRebased(): void
+    {
+        // Bare names match at any depth (see FileScanner) -- rebasing them into one
+        // absolute path would break that entirely, so they must be left untouched.
+        $input = $this->createInput(['src']);
+        $fileConfig = ['exclude' => ['vendor', 'Test']];
+
+        $config = $this->resolve($input, $fileConfig);
+
+        self::assertSame(['vendor', 'Test'], $config->exclude);
+    }
+
+    public function testFileExcludeAlreadyAbsoluteIsLeftUnchanged(): void
+    {
+        $input = $this->createInput(['src']);
+        $fileConfig = ['exclude' => ['/elsewhere/app/code/Test']];
+
+        $config = $this->resolve($input, $fileConfig);
+
+        self::assertSame(['/elsewhere/app/code/Test'], $config->exclude);
     }
 
     public function testNoColorsOverridesFileColorsTrue(): void
@@ -67,7 +121,7 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['--no-colors', 'src']);
         $fileConfig = ['colors' => true];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertFalse($config->colors);
     }
@@ -77,7 +131,7 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['src']);
         $fileConfig = ['colors' => true];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertTrue($config->colors);
     }
@@ -87,7 +141,7 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['src']);
         $fileConfig = ['fix-apply' => 2];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertSame(2, $config->fixApply);
     }
@@ -97,7 +151,7 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['--fix-apply=3', 'src']);
         $fileConfig = ['fix-apply' => 2];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertSame(3, $config->fixApply);
     }
@@ -107,7 +161,7 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['--fix', 'src']);
         $fileConfig = ['fix' => false];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertTrue($config->fix);
     }
@@ -117,26 +171,39 @@ final class ConfigResolverTest extends TestCase
         $input = $this->createInput(['src']);
         $fileConfig = ['fix' => true];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
         self::assertTrue($config->fix);
     }
 
-    public function testLocationsAreReadFromFileConfig(): void
+    public function testLocationsAreRebasedAgainstConfigDir(): void
     {
         $input = $this->createInput(['src']);
         $fileConfig = ['locations' => ['src', 'tests']];
 
-        $config = (new ConfigResolver())->resolve($input, $fileConfig);
+        $config = $this->resolve($input, $fileConfig);
 
-        self::assertSame(['src', 'tests'], $config->locations);
+        self::assertSame(
+            [self::CONFIG_DIR . '/src', self::CONFIG_DIR . '/tests'],
+            $config->locations,
+        );
+    }
+
+    public function testAbsoluteLocationIsLeftUnchanged(): void
+    {
+        $input = $this->createInput(['src']);
+        $fileConfig = ['locations' => ['/elsewhere/src']];
+
+        $config = $this->resolve($input, $fileConfig);
+
+        self::assertSame(['/elsewhere/src'], $config->locations);
     }
 
     public function testLocationsDefaultToEmptyArrayWhenFileConfigOmitsThem(): void
     {
         $input = $this->createInput(['src']);
 
-        $config = (new ConfigResolver())->resolve($input, []);
+        $config = $this->resolve($input, []);
 
         self::assertSame([], $config->locations);
     }

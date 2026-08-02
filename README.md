@@ -22,7 +22,7 @@ By default, only violations, fixes, and fix failures are printed per-file; passi
 
 | Option                     | Description                                                                                                                                                                                                                              |
 |----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--exclude=<path>`         | Path to exclude from scanning (repeatable). A bare name with no `/` (e.g. `vendor`, `Test`) matches a directory/file of that name at any depth, like `.gitignore`; a value containing `/` is matched relative to `--root-dir`. Excluded paths don't need to exist on disk. |
+| `--exclude=<path>`         | Path to exclude from scanning (repeatable). A bare name with no `/` (e.g. `vendor`, `Test`) matches a directory/file of that name at any depth, like `.gitignore`; a value containing `/` is matched relative to `--root-dir` (or, when sourced from the config file, relative to that file's own directory — see below). Excluded paths don't need to exist on disk. |
 | `--extension=<ext>`        | File extension to check, e.g. `php`, `xml`, `css`, `js` (repeatable). At least one is required.                                                                                                                                          |
 | `--template=<text>`        | Literal copyright template text to check for (repeatable). At least one is required. Matching is exact — include whatever comment syntax (`/* */`, `<!-- -->`, `#`, ...) is appropriate for the file type directly in the template text. |
 | `--colors` / `--no-colors` | Force ANSI colored output on/off. Default: `--no-colors`.                                                                                                                                                                                |
@@ -57,6 +57,14 @@ return [
 CLI options take precedence over `.copyright.dist`: for array options (`exclude`, `extension`, `template`), passing the option on the CLI at all wholly replaces the file's array for that option (values are not merged/unioned).
 
 `locations` is different: it's only a fallback for the `<file|directory>` arguments, used exactly when the command is invoked with none. Passing any path argument on the CLI ignores `locations` entirely (paths aren't merged with it).
+
+Relative `locations` entries, and relative `exclude` entries containing a `/`, are resolved against **the directory containing the config file itself** — not `--root-dir`. These are normally the same directory, but they can differ when `--config-path` points somewhere else entirely (e.g. the app lives in an `html` subdirectory but `.copyright.dist` sits one level up):
+
+```
+php html/vendor/bin/copyright --root-dir=html --config-path=/var/www/.copyright.dist
+```
+
+Here, a `locations` entry of `'html/src'` in that config file resolves to `/var/www/html/src`, relative to `/var/www` (where the config file lives), regardless of what `--root-dir` is. Bare-name `exclude` entries (no `/`) are unaffected either way, since they match at any depth rather than resolving against a base directory. CLI-supplied `--exclude`/path arguments are unaffected too — those always resolve relative to `--root-dir`, since they're supplied at invocation time rather than authored inside a config file.
 
 ### Standalone usage (without Composer)
 

@@ -46,6 +46,18 @@ final class ConfigFileLoader
         return $config;
     }
 
+    /**
+     * The directory containing the config file that {@see load()} will read (or would have
+     * read, whether or not it actually exists) -- the base against which relative paths
+     * written *inside* that config file (e.g. `locations`, `exclude`) should be resolved,
+     * as opposed to `--root-dir`, which may point elsewhere entirely when `--config-path`
+     * is used to load a config file from outside the project root.
+     */
+    public function resolveConfigDir(string $rootDir, ?string $configPath): string
+    {
+        return dirname($this->resolvePath($rootDir, $configPath));
+    }
+
     private function resolvePath(string $rootDir, ?string $configPath): string
     {
         if ($configPath === null) {

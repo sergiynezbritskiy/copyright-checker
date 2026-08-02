@@ -91,6 +91,27 @@ final class ConfigFileLoaderTest extends TestCase
         (new ConfigFileLoader())->load($this->rootDir, 'missing.php');
     }
 
+    public function testConfigDirDefaultsToRootDirWhenNoConfigPathGiven(): void
+    {
+        $configDir = (new ConfigFileLoader())->resolveConfigDir($this->rootDir, null);
+
+        self::assertSame($this->rootDir, $configDir);
+    }
+
+    public function testConfigDirIsSubdirectoryForRelativeConfigPath(): void
+    {
+        $configDir = (new ConfigFileLoader())->resolveConfigDir($this->rootDir, 'config/custom.php');
+
+        self::assertSame($this->rootDir . '/config', $configDir);
+    }
+
+    public function testConfigDirCanBeOutsideRootDirForAbsoluteConfigPath(): void
+    {
+        $configDir = (new ConfigFileLoader())->resolveConfigDir($this->rootDir, '/elsewhere/custom.php');
+
+        self::assertSame('/elsewhere', $configDir);
+    }
+
     private function writeConfig(string $relativePath, string $contents): void
     {
         file_put_contents($this->rootDir . '/' . $relativePath, $contents);
