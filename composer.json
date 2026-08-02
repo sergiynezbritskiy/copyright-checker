@@ -44,7 +44,7 @@
     "scripts": {
         "phpcs": "XDEBUG_MODE=off vendor/bin/phpcs --standard=phpcs.xml",
         "fix": "XDEBUG_MODE=off vendor/bin/phpcbf --standard=phpcs.xml",
-        "phpmd": "XDEBUG_MODE=off vendor/bin/phpmd analyze src phpmd.xml",
+        "phpmd": "XDEBUG_MODE=off vendor/bin/phpmd analyze --format=text --ruleset=phpmd.xml src tests",
         "phpstan": "XDEBUG_MODE=off vendor/bin/phpstan analyse --level=6 src tests",
         "tests": "XDEBUG_MODE=coverage vendor/bin/phpunit --stop-on-failure --stop-on-error --coverage-html=var/reports/coverage --coverage-clover=var/reports/coverage.xml",
         "tests-debug": "vendor/bin/phpunit --coverage-html=var/reports/coverage --coverage-clover=var/reports/coverage.xml",

@@ -17,7 +17,10 @@ final class FileScanner
      */
     public function scan(array $paths, array $extensions, array $excludes, string $rootDir): array
     {
-        $excludedRealPaths = $this->resolveExcludes($excludes, $rootDir);
+        $rootRealPath = realpath($rootDir);
+        $rootRealPath = $rootRealPath === false ? rtrim($rootDir, '/') : $rootRealPath;
+
+        $normalizedExcludes = $this->normalizeExcludes($excludes);
         $extensionSet = array_values(array_unique(array_map(
             static fn (string $ext): string => strtolower(ltrim($ext, '.')),
             $extensions,
@@ -50,7 +53,7 @@ final class FileScanner
 
         $result = array_keys(array_filter(
             $files,
-            fn (string $path): bool => !$this->isExcluded($path, $excludedRealPaths),
+            fn (string $path): bool => !$this->isExcluded($path, $rootRealPath, $normalizedExcludes),
             ARRAY_FILTER_USE_KEY,
         ));
 
@@ -107,28 +110,43 @@ final class FileScanner
      * @param string[] $excludes
      * @return string[]
      */
-    private function resolveExcludes(array $excludes, string $rootDir): array
+    private function normalizeExcludes(array $excludes): array
     {
-        $resolved = [];
+        $normalized = array_map(
+            static fn (string $exclude): string => trim(str_replace('\\', '/', $exclude), '/'),
+            $excludes,
+        );
 
-        foreach ($excludes as $exclude) {
-            $realPath = realpath($this->resolvePath($exclude, $rootDir));
-
-            if ($realPath !== false) {
-                $resolved[] = $realPath;
-            }
-        }
-
-        return $resolved;
+        return array_values(array_filter($normalized, static fn (string $exclude): bool => $exclude !== ''));
     }
 
     /**
-     * @param string[] $excludedRealPaths
+     * An exclude value containing a "/" is matched as a path relative to the project root
+     * (e.g. "app/code/Vendor/Module/Test"). A bare name with no "/" (e.g. "vendor", "Test")
+     * is matched as a path segment at any depth, mirroring how tools like .gitignore treat
+     * bare names -- this lets a single "Test" entry exclude every directory named "Test"
+     * anywhere in the tree, not just one sitting directly under the project root. Neither
+     * form requires the excluded path to actually exist on disk.
+     *
+     * @param string[] $excludes
      */
-    private function isExcluded(string $realPath, array $excludedRealPaths): bool
+    private function isExcluded(string $realPath, string $rootRealPath, array $excludes): bool
     {
-        foreach ($excludedRealPaths as $excluded) {
-            if ($realPath === $excluded || str_starts_with($realPath, $excluded . '/')) {
+        $relativePath = str_starts_with($realPath, $rootRealPath . '/')
+            ? substr($realPath, strlen($rootRealPath) + 1)
+            : $realPath;
+        $segments = explode('/', $relativePath);
+
+        foreach ($excludes as $exclude) {
+            if (str_contains($exclude, '/')) {
+                if ($relativePath === $exclude || str_starts_with($relativePath, $exclude . '/')) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (in_array($exclude, $segments, true)) {
                 return true;
             }
         }

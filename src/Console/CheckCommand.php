@@ -81,6 +81,13 @@ final class CheckCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Project root directory (location of .copyright.dist and base for relative paths).',
+            )
+            ->addOption(
+                'config-path',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Path to the config file (relative to --root-dir unless absolute). Defaults to '
+                    . '<root-dir>/' . ConfigFileLoader::FILENAME . '.',
             );
     }
 
@@ -99,7 +106,7 @@ final class CheckCommand extends Command
         }
 
         try {
-            $fileConfig = (new ConfigFileLoader())->load($rootDir);
+            $fileConfig = (new ConfigFileLoader())->load($rootDir, $this->resolveConfigPath($input));
         } catch (RuntimeException $e) {
             $io->error($e->getMessage());
 
@@ -165,6 +172,13 @@ final class CheckCommand extends Command
         }
 
         return rtrim($this->defaultRootDir, '/');
+    }
+
+    private function resolveConfigPath(InputInterface $input): ?string
+    {
+        $configPathOption = $input->getOption('config-path');
+
+        return $configPathOption !== null ? (string) $configPathOption : null;
     }
 
     /**

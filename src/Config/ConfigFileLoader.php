@@ -15,11 +15,15 @@ final class ConfigFileLoader
     /**
      * @return array<string, mixed>
      */
-    public function load(string $rootDir): array
+    public function load(string $rootDir, ?string $configPath = null): array
     {
-        $path = rtrim($rootDir, '/') . '/' . self::FILENAME;
+        $path = $this->resolvePath($rootDir, $configPath);
 
         if (!is_file($path)) {
+            if ($configPath !== null) {
+                throw new RuntimeException(sprintf('Config file "%s" does not exist.', $path));
+            }
+
             return [];
         }
 
@@ -40,5 +44,23 @@ final class ConfigFileLoader
         }
 
         return $config;
+    }
+
+    private function resolvePath(string $rootDir, ?string $configPath): string
+    {
+        if ($configPath === null) {
+            return rtrim($rootDir, '/') . '/' . self::FILENAME;
+        }
+
+        if ($this->isAbsolute($configPath)) {
+            return $configPath;
+        }
+
+        return rtrim($rootDir, '/') . '/' . $configPath;
+    }
+
+    private function isAbsolute(string $path): bool
+    {
+        return str_starts_with($path, '/') || preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1;
     }
 }

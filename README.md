@@ -22,13 +22,14 @@ By default, only violations, fixes, and fix failures are printed per-file; passi
 
 | Option                     | Description                                                                                                                                                                                                                              |
 |----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--exclude=<path>`         | Path to exclude from scanning (repeatable).                                                                                                                                                                                              |
+| `--exclude=<path>`         | Path to exclude from scanning (repeatable). A bare name with no `/` (e.g. `vendor`, `Test`) matches a directory/file of that name at any depth, like `.gitignore`; a value containing `/` is matched relative to `--root-dir`. Excluded paths don't need to exist on disk. |
 | `--extension=<ext>`        | File extension to check, e.g. `php`, `xml`, `css`, `js` (repeatable). At least one is required.                                                                                                                                          |
 | `--template=<text>`        | Literal copyright template text to check for (repeatable). At least one is required. Matching is exact — include whatever comment syntax (`/* */`, `<!-- -->`, `#`, ...) is appropriate for the file type directly in the template text. |
 | `--colors` / `--no-colors` | Force ANSI colored output on/off. Default: `--no-colors`.                                                                                                                                                                                |
 | `--fix`                    | Fix files whose header doesn't match. If more than one `--template` is configured, you'll be asked interactively which one to apply to every fixed file in the run (or pass `--fix-apply`).                                              |
 | `--fix-apply=<N>`          | 1-based index into the merged `--template` list to apply non-interactively when fixing.                                                                                                                                                  |
 | `--root-dir=<path>`        | Project root: where `.copyright.dist` is looked for and the base for relative paths. Defaults to the consuming project's root when installed via Composer.                                                                               |
+| `--config-path=<path>`     | Path to the config file, relative to `--root-dir` unless absolute. Defaults to `<root-dir>/.copyright.dist`. Errors if the given path doesn't exist (unlike the default, which is silently optional).                                    |
 
 ### `.copyright.dist`
 

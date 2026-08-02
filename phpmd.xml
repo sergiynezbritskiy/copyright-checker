@@ -23,11 +23,18 @@
 
     <rule ref="rulesets/naming.xml">
         <exclude name="ShortVariable"/>
+        <exclude name="LongMethodName"/>
     </rule>
     <rule ref="rulesets/naming.xml/ShortVariable">
         <properties>
             <!-- "$io" is the standard, idiomatic Symfony Console variable name for SymfonyStyle. -->
             <property name="exceptions" value="io"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/naming.xml/LongMethodName">
+        <properties>
+            <!-- PHPUnit test method names are conventionally long and descriptive. -->
+            <property name="threshold" value="100"/>
         </properties>
     </rule>
 </ruleset>

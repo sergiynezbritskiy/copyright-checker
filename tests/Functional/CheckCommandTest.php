@@ -125,6 +125,45 @@ final class CheckCommandTest extends TestCase
         self::assertSame(Command::INVALID, $exitCode);
     }
 
+    public function testConfigPathOverridesDefaultDistFile(): void
+    {
+        mkdir($this->tmpDir . '/src');
+        file_put_contents($this->tmpDir . '/src/Foo.php', "<?php\n// Copyright\n\nclass Foo {}\n");
+
+        // A default .copyright.dist that would fail (no extension/template configured),
+        // to prove --config-path is what actually got read, not the default file.
+        file_put_contents($this->tmpDir . '/.copyright.dist', "<?php\nreturn [];\n");
+        file_put_contents($this->tmpDir . '/custom-config.php', <<<'PHP'
+            <?php
+            return [
+                'extension' => ['php'],
+                'template' => ['// Copyright'],
+                'locations' => ['src'],
+            ];
+            PHP);
+
+        $tester = $this->createTester();
+        $exitCode = $tester->execute([
+            '--root-dir' => $this->tmpDir,
+            '--config-path' => 'custom-config.php',
+        ]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('1 OK', $tester->getDisplay());
+    }
+
+    public function testMissingConfigPathIsAUsageError(): void
+    {
+        $tester = $this->createTester();
+        $exitCode = $tester->execute([
+            'paths' => [$this->tmpDir],
+            '--root-dir' => $this->tmpDir,
+            '--config-path' => 'does-not-exist.php',
+        ]);
+
+        self::assertSame(Command::INVALID, $exitCode);
+    }
+
     public function testMissingExtensionIsAUsageError(): void
     {
         file_put_contents($this->tmpDir . '/Foo.php', "<?php\nclass Foo {}\n");
