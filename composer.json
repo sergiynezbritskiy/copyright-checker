@@ -1,0 +1,58 @@
+{
+    "name": "sergiynezbritskiy/copyright-checker",
+    "description": "CLI tool to lint and fix copyright header blocks in source files.",
+    "type": "library",
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=8.2",
+        "symfony/console": "^6.4 || ^7.0",
+        "symfony/finder": "^6.4 || ^7.0",
+        "symfony/filesystem": "^6.4 || ^7.0"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpcompatibility/php-compatibility": "^9.3",
+        "phpmd/phpmd": "^3@dev",
+        "phpstan/phpstan": "2.2.x-dev",
+        "phpunit/phpunit": "^11.0",
+        "squizlabs/php_codesniffer": "^3.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "CopyrightChecker\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CopyrightChecker\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/copyright"
+    ],
+    "archive": {
+        "exclude": ["/vendor", "/var", "/tmp"]
+    },
+    "config": {
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "phpcs": "XDEBUG_MODE=off vendor/bin/phpcs --standard=phpcs.xml",
+        "fix": "XDEBUG_MODE=off vendor/bin/phpcbf --standard=phpcs.xml",
+        "phpmd": "XDEBUG_MODE=off vendor/bin/phpmd analyze src phpmd.xml",
+        "phpstan": "XDEBUG_MODE=off vendor/bin/phpstan analyse --level=6 src tests",
+        "tests": "XDEBUG_MODE=coverage vendor/bin/phpunit --stop-on-failure --stop-on-error --coverage-html=var/reports/coverage --coverage-clover=var/reports/coverage.xml",
+        "tests-debug": "vendor/bin/phpunit --coverage-html=var/reports/coverage --coverage-clover=var/reports/coverage.xml",
+        "all": [
+            "@phpcs",
+            "@phpmd",
+            "@phpstan",
+            "@tests"
+        ]
+    }
+}

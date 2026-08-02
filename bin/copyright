@@ -1,0 +1,27 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$packageRoot = realpath(__DIR__ . '/..');
+$standaloneAutoload = $packageRoot . '/vendor/autoload.php';
+
+if (is_file($standaloneAutoload)) {
+    // Standalone: this repo was cloned and `composer install` was run directly inside it,
+    // so it has its own vendor/ folder. There's no consuming project to infer a root from,
+    // so --root-dir must be passed explicitly.
+    require $standaloneAutoload;
+    $app = CopyrightChecker\Console\ApplicationFactory::create(standalone: true);
+} else {
+    // Installed as a Composer dependency. $packageRoot is already
+    // <consumerRoot>/vendor/<vendor-name>/<package-name>, i.e. two directory segments
+    // below vendor/. So the consumer's real root is three levels above $packageRoot:
+    // past the package-name segment, past the vendor-name segment, then past vendor/ itself.
+    $consumerRoot = dirname($packageRoot, 3);
+    /** @noinspection PhpIncludeInspection */
+    require $consumerRoot . '/vendor/autoload.php';
+    $app = CopyrightChecker\Console\ApplicationFactory::create(standalone: false, defaultRootDir: $consumerRoot);
+}
+
+/** @noinspection PhpUnhandledExceptionInspection */
+exit($app->run());

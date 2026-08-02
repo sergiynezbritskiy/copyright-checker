@@ -1,0 +1,11 @@
+services:
+  php:
+    build: .docker/php
+    container_name: copyright-checker-php
+    platform: linux/amd64
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    environment:
+      - XDEBUG_CLIENT_HOST=172.18.0.1
+      - PHP_IDE_CONFIG=serverName=phpstorm

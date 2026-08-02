@@ -1,0 +1,19 @@
+<?php
+
+declare(strict_types=1);
+
+$defaultTemplate = <<<'TEMPLATE'
+        /**
+         * Copyright (c) 2026 Sergiy Nezbritskiy
+         * Licensed under the MIT License.
+         */
+        TEMPLATE;
+return [
+    'extension' => ['php'],
+    'exclude' => ['vendor', 'var', 'tmp'],
+    'template' => [
+        $defaultTemplate,
+    ],
+    'colors' => true,
+    'locations' => ['src', 'tests'],
+];

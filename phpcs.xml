@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<ruleset name="copyright-checker">
+    <description>Coding standard for copyright-checker.</description>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="parallel" value="4"/>
+    <arg value="p"/>
+
+    <file>src</file>
+    <file>tests</file>
+
+    <rule ref="PSR12"/>
+
+    <config name="testVersion" value="8.2-"/>
+    <rule ref="PHPCompatibility"/>
+</ruleset>
