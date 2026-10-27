@@ -36,14 +36,20 @@ final class ConsoleReporter
 
         $output->writeln('');
         $output->writeln(sprintf(
-            'Checked %d file(s): <info>%d OK</info>, <error>%d violation(s)</error>, '
-                . '<info>%d fixed</info>, <error>%d fix failure(s)</error>.',
+            'Checked %d file(s): <info>%d OK</info>, %s, <info>%d fixed</info>, %s.',
             count($results),
             $counts[ScanResult::STATUS_OK],
-            $counts[ScanResult::STATUS_VIOLATION],
+            $this->formatProblemCount($counts[ScanResult::STATUS_VIOLATION], 'violation(s)'),
             $counts[ScanResult::STATUS_FIXED],
-            $counts[ScanResult::STATUS_FIX_FAILED],
+            $this->formatProblemCount($counts[ScanResult::STATUS_FIX_FAILED], 'fix failure(s)'),
         ));
+    }
+
+    private function formatProblemCount(int $count, string $label): string
+    {
+        $tag = $count > 0 ? 'error' : 'info';
+
+        return sprintf('<%1$s>%2$d %3$s</%1$s>', $tag, $count, $label);
     }
 
     private function formatStatus(string $status): string

@@ -71,4 +71,31 @@ final class ConsoleReporterTest extends TestCase
 
         self::assertStringContainsString('2 OK', $output->fetch());
     }
+
+    public function testZeroProblemCountsAreNotStyledAsErrors(): void
+    {
+        $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+        $results = [new ScanResult('src/Foo.php', ScanResult::STATUS_OK)];
+
+        (new ConsoleReporter())->render($output, $results);
+
+        $display = $output->fetch();
+        self::assertStringContainsString("\033[32m0 violation(s)\033[39m", $display);
+        self::assertStringContainsString("\033[32m0 fix failure(s)\033[39m", $display);
+    }
+
+    public function testNonZeroProblemCountsAreStyledAsErrors(): void
+    {
+        $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true);
+        $results = [
+            new ScanResult('src/Bad.php', ScanResult::STATUS_VIOLATION),
+            new ScanResult('src/Broken.php', ScanResult::STATUS_FIX_FAILED),
+        ];
+
+        (new ConsoleReporter())->render($output, $results);
+
+        $display = $output->fetch();
+        self::assertStringContainsString("\033[37;41m1 violation(s)\033[39;49m", $display);
+        self::assertStringContainsString("\033[37;41m1 fix failure(s)\033[39;49m", $display);
+    }
 }
