@@ -16,6 +16,8 @@ final class ConfigResolver
      */
     public function resolve(InputInterface $input, array $fileConfig, string $configDir): Config
     {
+        $configDir = $this->normalizeDir($configDir);
+
         return new Config(
             exclude: $this->resolveExclude($input, $fileConfig, $configDir),
             extension: $this->resolveArrayOption($input, 'extension', $fileConfig),
@@ -98,6 +100,46 @@ final class ConfigResolver
     private function rebase(string $path, string $configDir): string
     {
         return $this->isAbsolute($path) ? $path : rtrim($configDir, '/') . '/' . $path;
+    }
+
+    /**
+     * FileScanner matches absolute excludes against realpath()s, so the config dir must be
+     * canonical too: a relative --config-path such as "../.copyright.dist" otherwise yields
+     * "/root/.." and no rebased exclude would ever match. Falls back to a lexical "."/".."
+     * collapse when the directory does not exist on disk.
+     */
+    private function normalizeDir(string $dir): string
+    {
+        $realPath = realpath($dir);
+        if ($realPath !== false) {
+            return $realPath;
+        }
+
+        return $this->collapseDotSegments($dir);
+    }
+
+    private function collapseDotSegments(string $path): string
+    {
+        $segments = [];
+        foreach (array_diff(explode('/', $path), ['', '.']) as $segment) {
+            if ($segment === '..' && $segments !== [] && end($segments) !== '..') {
+                array_pop($segments);
+                continue;
+            }
+
+            $segments[] = $segment;
+        }
+
+        if (!str_starts_with($path, '/')) {
+            return $segments === [] ? '.' : implode('/', $segments);
+        }
+
+        // ".." above the filesystem root stays at the root.
+        while (($segments[0] ?? null) === '..') {
+            array_shift($segments);
+        }
+
+        return '/' . implode('/', $segments);
     }
 
     private function isAbsolute(string $path): bool

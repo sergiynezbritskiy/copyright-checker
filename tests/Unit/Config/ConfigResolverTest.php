@@ -207,4 +207,31 @@ final class ConfigResolverTest extends TestCase
 
         self::assertSame([], $config->locations);
     }
+
+    public function testConfigDirContainingParentSegmentIsNormalizedBeforeRebasing(): void
+    {
+        $input = $this->createInput([]);
+        $fileConfig = ['exclude' => ['src/lib', 'vendor'], 'locations' => ['src']];
+
+        $config = $this->resolve($input, $fileConfig, '/project/html/../');
+
+        self::assertSame(['/project/src/lib', 'vendor'], $config->exclude);
+        self::assertSame(['/project/src'], $config->locations);
+    }
+
+    public function testExistingConfigDirIsResolvedToItsRealPath(): void
+    {
+        $dir = sys_get_temp_dir() . '/copyright-checker-resolver-' . uniqid();
+        mkdir($dir . '/html', 0777, true);
+        $realDir = (string) realpath($dir);
+
+        try {
+            $config = $this->resolve($this->createInput([]), ['exclude' => ['src/lib']], $dir . '/html/..');
+        } finally {
+            rmdir($dir . '/html');
+            rmdir($dir);
+        }
+
+        self::assertSame([$realDir . '/src/lib'], $config->exclude);
+    }
 }

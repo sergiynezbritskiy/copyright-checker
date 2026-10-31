@@ -138,6 +138,37 @@ final class CheckCommandTest extends TestCase
         self::assertStringContainsString('1 OK', $tester->getDisplay());
     }
 
+    public function testConfigExcludeMatchesWithRelativeConfigPathContainingParentDir(): void
+    {
+        // Reproduces the reported scenario: root-dir is "html", the config one level up is
+        // passed as "../.copyright.dist", and its "exclude" must still apply to files under
+        // the (outer) src location.
+        $outerDir = $this->tmpDir;
+        $appDir = $outerDir . '/html';
+        mkdir($appDir);
+        mkdir($outerDir . '/src/view/frontend/web/lib', 0777, true);
+        file_put_contents($outerDir . '/src/Foo.php', "<?php\n// Copyright\n\nclass Foo {}\n");
+        file_put_contents($outerDir . '/src/view/frontend/web/lib/Bar.php', "<?php\nclass Bar {}\n");
+        file_put_contents($outerDir . '/.copyright.dist', <<<'PHP'
+            <?php
+            return [
+                'extension' => ['php'],
+                'template' => ['// Copyright'],
+                'locations' => ['src'],
+                'exclude' => ['src/view/frontend/web/lib'],
+            ];
+            PHP);
+
+        $tester = $this->createTester();
+        $exitCode = $tester->execute([
+            '--root-dir' => $appDir,
+            '--config-path' => '../.copyright.dist',
+        ]);
+
+        self::assertSame(Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('1 OK', $tester->getDisplay());
+    }
+
     public function testNoPathArgumentsAndNoLocationsIsAUsageError(): void
     {
         file_put_contents($this->tmpDir . '/.copyright.dist', <<<'PHP'

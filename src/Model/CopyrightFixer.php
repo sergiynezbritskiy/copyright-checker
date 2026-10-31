@@ -49,21 +49,79 @@ final class CopyrightFixer
         if ($firstNonBlankLine === $template->getFirstLine()) {
             $endIndex = $this->findClosingLineIndex($bodyLines, $template->getLastLine());
 
-            if ($endIndex !== null) {
-                $tailLines = array_slice($bodyLines, $endIndex + 1);
+            // Only a leading block that looks like an (outdated) copyright header is replaced;
+            // any other block (e.g. an "@noinspection" docblock) is kept below the new header.
+            if (
+                $endIndex !== null
+                && $this->looksLikeCopyright(array_slice($bodyLines, 0, $endIndex + 1), $template)
+            ) {
+                $bodyLines = array_slice($bodyLines, $endIndex + 1);
 
                 // Collapse any number of blank lines after the old block down to the single
                 // separator added below, so repeated fixes never accumulate blanks.
-                while (($tailLines[0] ?? null) === '') {
-                    array_shift($tailLines);
+                while (($bodyLines[0] ?? null) === '') {
+                    array_shift($bodyLines);
                 }
-
-                return $preamble . $leadingSeparator . $template->getText() . $trailingSeparator
-                    . implode("\n", $tailLines);
             }
         }
 
-        return $preamble . $leadingSeparator . $template->getText() . $trailingSeparator . $body;
+        $bodyLines = $this->removeDuplicateBlock($bodyLines, $template);
+
+        return $preamble . $leadingSeparator . $template->getText() . $trailingSeparator
+            . implode("\n", $bodyLines);
+    }
+
+    /**
+     * A block is considered a copyright header when it mentions copyright/licensing, or
+     * shares at least one content line (other than the delimiters) with the template.
+     *
+     * @param string[] $blockLines
+     */
+    private function looksLikeCopyright(array $blockLines, CopyrightTemplate $template): bool
+    {
+        $text = implode("\n", $blockLines);
+        if (preg_match('/copyright|licen[cs]e|\(c\)|\x{00A9}/iu', $text) === 1) {
+            return true;
+        }
+
+        $templateLines = array_slice(explode("\n", $template->getText()), 1, -1);
+        $contentLines = array_filter(
+            array_slice($blockLines, 1, -1),
+            static fn (string $line): bool => trim($line, " \t*/#") !== '',
+        );
+
+        return array_intersect($contentLines, $templateLines) !== [];
+    }
+
+    /**
+     * Removes an exact copy of the template found further down within the search window
+     * (e.g. a correct header that sat below another docblock), together with the blank
+     * lines that follow it, so the header is effectively moved to the top.
+     *
+     * @param string[] $bodyLines
+     * @return string[]
+     */
+    private function removeDuplicateBlock(array $bodyLines, CopyrightTemplate $template): array
+    {
+        $templateLines = explode("\n", $template->getText());
+        $count = count($templateLines);
+        $limit = min(count($bodyLines), $this->searchWindowLines) - $count;
+
+        for ($i = 0; $i <= $limit; $i++) {
+            if (array_slice($bodyLines, $i, $count) !== $templateLines) {
+                continue;
+            }
+
+            $end = $i + $count;
+            while (($bodyLines[$end] ?? null) === '') {
+                $end++;
+            }
+            array_splice($bodyLines, $i, $end - $i);
+
+            return $bodyLines;
+        }
+
+        return $bodyLines;
     }
 
     /**
@@ -78,7 +136,7 @@ final class CopyrightFixer
             return '';
         }
 
-        return strtolower($extension) === 'php' ? "\n\n" : "\n";
+        return in_array(strtolower($extension), ['php', 'phtml'], true) ? "\n\n" : "\n";
     }
 
     /**

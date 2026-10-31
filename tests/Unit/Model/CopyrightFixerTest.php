@@ -231,11 +231,80 @@ final class CopyrightFixerTest extends TestCase
 
     public function testCollapsesMultipleBlankLinesAfterReplacedBlockToExactlyOne(): void
     {
-        $template = new CopyrightTemplate("/*\n * New\n */");
-        $content = "<?php\n/*\n * Old\n */\n\n\nclass Foo {}\n";
+        $template = new CopyrightTemplate("/*\n * Copyright New\n */");
+        $content = "<?php\n/*\n * Copyright Old\n */\n\n\nclass Foo {}\n";
 
         $fixed = $this->fixer->fix($content, 'php', $template);
 
-        self::assertSame("<?php\n\n/*\n * New\n */\n\nclass Foo {}\n", $fixed);
+        self::assertSame("<?php\n\n/*\n * Copyright New\n */\n\nclass Foo {}\n", $fixed);
+    }
+
+    public function testPlacesTemplateAfterPhpTagInPhtmlFile(): void
+    {
+        $template = new CopyrightTemplate("/**\n * Copyright (c) 2026\n */");
+        $content = "<?php\n/** @var \\Magento\\Framework\\View\\Element\\Template \$block */\n?>\n<div></div>\n";
+
+        $fixed = $this->fixer->fix($content, 'phtml', $template);
+
+        self::assertSame(
+            "<?php\n\n/**\n * Copyright (c) 2026\n */\n\n"
+                . "/** @var \\Magento\\Framework\\View\\Element\\Template \$block */\n?>\n<div></div>\n",
+            $fixed,
+        );
+    }
+
+    public function testFixingCorrectPhtmlFileIsNoOp(): void
+    {
+        $template = new CopyrightTemplate("/**\n * Copyright (c) 2026\n */");
+        $content = "<?php\n\n/**\n * Copyright (c) 2026\n */\n\n?>\n<div></div>\n";
+
+        self::assertSame($content, $this->fixer->fix($content, 'phtml', $template));
+    }
+
+    public function testKeepsNonCopyrightDocblockAndMovesCorrectBlockAboveIt(): void
+    {
+        $template = new CopyrightTemplate(
+            "/**\n * Sergiy Nezbritskiy Package\n * Licensed under the MIT License.\n */",
+        );
+        $content = "<?php\n\n/**\n * @noinspection PhpFullyQualifiedNameUsageInspection\n */\n\n"
+            . "/**\n * Sergiy Nezbritskiy Package\n * Licensed under the MIT License.\n */\n\n"
+            . "declare(strict_types=1);\n";
+
+        $fixed = $this->fixer->fix($content, 'php', $template);
+
+        self::assertSame(
+            "<?php\n\n/**\n * Sergiy Nezbritskiy Package\n * Licensed under the MIT License.\n */\n\n"
+                . "/**\n * @noinspection PhpFullyQualifiedNameUsageInspection\n */\n\n"
+                . "declare(strict_types=1);\n",
+            $fixed,
+        );
+        self::assertSame($fixed, $this->fixer->fix($fixed, 'php', $template));
+    }
+
+    public function testInsertsTemplateAboveNonCopyrightDocblockInsteadOfReplacingIt(): void
+    {
+        $template = new CopyrightTemplate("/**\n * Sergiy Nezbritskiy Package\n */");
+        $content = "<?php\n\n/**\n * @noinspection PhpUnused\n */\n\ndeclare(strict_types=1);\n";
+
+        $fixed = $this->fixer->fix($content, 'php', $template);
+
+        self::assertSame(
+            "<?php\n\n/**\n * Sergiy Nezbritskiy Package\n */\n\n"
+                . "/**\n * @noinspection PhpUnused\n */\n\ndeclare(strict_types=1);\n",
+            $fixed,
+        );
+    }
+
+    public function testReplacesOutdatedBlockSharingALineWithTemplate(): void
+    {
+        $template = new CopyrightTemplate("/**\n * Sergiy Nezbritskiy Package\n * Version 2\n */");
+        $content = "<?php\n\n/**\n * Sergiy Nezbritskiy Package\n * Version 1\n */\n\nclass Foo {}\n";
+
+        $fixed = $this->fixer->fix($content, 'php', $template);
+
+        self::assertSame(
+            "<?php\n\n/**\n * Sergiy Nezbritskiy Package\n * Version 2\n */\n\nclass Foo {}\n",
+            $fixed,
+        );
     }
 }

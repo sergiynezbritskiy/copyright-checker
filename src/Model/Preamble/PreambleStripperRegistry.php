@@ -14,9 +14,11 @@ final class PreambleStripperRegistry
     public function __construct()
     {
         $shebang = new ShebangPreambleStripper();
+        $php = new PhpPreambleStripper($shebang);
 
         $this->strippers = [
-            'php' => new PhpPreambleStripper($shebang),
+            'php' => $php,
+            'phtml' => $php,
             'xml' => new XmlPreambleStripper(),
             'js' => $shebang,
             'mjs' => $shebang,

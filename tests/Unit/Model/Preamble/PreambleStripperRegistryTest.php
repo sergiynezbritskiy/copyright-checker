@@ -25,6 +25,11 @@ final class PreambleStripperRegistryTest extends TestCase
         self::assertInstanceOf(PhpPreambleStripper::class, $this->registry->forExtension('php'));
     }
 
+    public function testReturnsPhpStripperForPhtmlExtension(): void
+    {
+        self::assertInstanceOf(PhpPreambleStripper::class, $this->registry->forExtension('phtml'));
+    }
+
     public function testReturnsXmlStripperForXmlExtension(): void
     {
         self::assertInstanceOf(XmlPreambleStripper::class, $this->registry->forExtension('xml'));

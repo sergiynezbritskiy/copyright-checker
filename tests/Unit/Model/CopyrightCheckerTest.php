@@ -112,4 +112,25 @@ final class CopyrightCheckerTest extends TestCase
 
         self::assertTrue($result->matched);
     }
+
+    public function testMatchesTemplateAfterPhpTagInPhtmlFile(): void
+    {
+        $template = new CopyrightTemplate("/**\n * Copyright (c) 2026\n */");
+        $content = "<?php\n\n/**\n * Copyright (c) 2026\n */\n\n?>\n<div><?= \$block->getText() ?></div>\n";
+
+        $result = $this->checker->check($content, 'phtml', [$template]);
+
+        self::assertTrue($result->matched);
+        self::assertSame(0, $result->matchedTemplateIndex);
+    }
+
+    public function testRejectsPhtmlFileWithoutTemplate(): void
+    {
+        $template = new CopyrightTemplate("/**\n * Copyright (c) 2026\n */");
+        $content = "<?php\n\n/** @var \\Magento\\Framework\\View\\Element\\Template \$block */\n?>\n<div></div>\n";
+
+        $result = $this->checker->check($content, 'phtml', [$template]);
+
+        self::assertFalse($result->matched);
+    }
 }
